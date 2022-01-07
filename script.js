@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.0
+// @version 1.1
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
