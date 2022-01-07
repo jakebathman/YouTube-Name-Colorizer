@@ -28,9 +28,13 @@ var settingsShow;
 let SETTINGS = JSON.parse(localStorage.getItem(localStorageKey)) || {};
 let COLORIZED_USERS_NORMAL = settingsGet('users_normal', []);
 let COLORIZED_USERS_TEMP = settingsGet('users_temp', []);
+let AT_MENTIONABLE = [];
+let AUTHORS_IN_CHAT = [];
 
 console.log({ COLORIZED_USERS_NORMAL });
 console.log({ COLORIZED_USERS_TEMP });
+console.log({ AT_MENTIONABLE });
+console.log({ AUTHORS_IN_CHAT });
 
 console.debug('SETTINGS', SETTINGS);
 
@@ -38,6 +42,7 @@ let MESSAGE_TAG = 'yt-live-chat-text-message-renderer';
 let OTHER_USER_COLOR = 'FF69B4';
 let CURRENT_USER_COLOR = 'ff5722';
 let TEMP_USER_COLOR = 'ffff2a';
+let MENTIONED_USER_COLOR = '612155';
 let CURRENT_USER = '';
 
 function settingsGet(key, defaultValue = null) {
@@ -64,16 +69,38 @@ function settingsSet(key, value) {
 
     COLORIZED_USERS_NORMAL = settingsGet('users_normal', []);
     COLORIZED_USERS_TEMP = settingsGet('users_temp', []);
+    AT_MENTIONABLE = getAtMentionableUsers();
+    console.debug({ AT_MENTIONABLE });
 
     processExistingMessages();
+}
+
+function getAtMentionableUsers() {
+    return Array.from(
+        new Set(
+            AUTHORS_IN_CHAT.concat(COLORIZED_USERS_NORMAL).concat(
+                COLORIZED_USERS_TEMP
+            )
+        )
+    );
+}
+
+function addUserInChat(username) {
+    AUTHORS_IN_CHAT = addItemToArray(AUTHORS_IN_CHAT, username);
+    AT_MENTIONABLE = getAtMentionableUsers();
+}
+
+function addItemToArray(array, item) {
+    array.push(item);
+    array = Array.from(new Set(array));
+    return array;
 }
 
 function settingsAddUser(username, type = 'normal') {
     let typeKey = `users_${type}`;
     let users = settingsGet(typeKey, []);
-    users.push(username);
 
-    users = Array.from(new Set(users));
+    users = addItemToArray(users, username);
 
     settingsSet(typeKey, users);
 }
@@ -326,11 +353,17 @@ let processMessage = function (msg) {
     var author = msg.querySelector('#author-name');
 
     if (author) {
-        if (currentUser() == author.innerText) {
+        let authorName = author.innerText;
+
+        // Log the author name so it can be @mentioned
+        addUserInChat(authorName);
+
+        console.debug('[YTNC] Found author', authorName);
+        if (currentUser() == authorName) {
             author.style.cssText += `color:#${CURRENT_USER_COLOR};${commonStyles}`;
-        } else if (COLORIZED_USERS_NORMAL.includes(author.innerText)) {
+        } else if (COLORIZED_USERS_NORMAL.includes(authorName)) {
             author.style.cssText += `color:#${OTHER_USER_COLOR};${commonStyles}`;
-        } else if (COLORIZED_USERS_TEMP.includes(author.innerText)) {
+        } else if (COLORIZED_USERS_TEMP.includes(authorName)) {
             author.style.cssText += `color:#${TEMP_USER_COLOR};${commonStyles}`;
         } else {
             // Remove color override (if user was removed from all lists)
@@ -339,7 +372,7 @@ let processMessage = function (msg) {
 
         // Add author onclick
         author.onclick = function () {
-            showModal(author.innerText);
+            showModal(authorName);
         };
 
         // Move user badges before author chip element
@@ -347,6 +380,38 @@ let processMessage = function (msg) {
 
         if (badges) {
             badges.after(author);
+        }
+
+        // Process the message text
+        var message = msg.querySelector('#message');
+        console.debug({ message });
+
+        if (message) {
+            if ('originalHtml' in message.dataset === false) {
+                message.dataset.originalHtml = message.innerHTML;
+            }
+
+            let newHtml = message.dataset.originalHtml;
+
+            // Loop over AT_MENTIONABLE and colorize any mentions found
+            let commonAtMentionStyles = 'padding: 2px 3px;border-radius: 2px;';
+
+            AT_MENTIONABLE.forEach((user) => {
+                if (user == CURRENT_USER) {
+                    return;
+                }
+
+                let regex = new RegExp(`@${user}`, 'gi');
+                let matches = newHtml.match(regex);
+                if (matches) {
+                    newHtml = newHtml.replace(
+                        regex,
+                        `<span style="background-color:#${MENTIONED_USER_COLOR};${commonAtMentionStyles}">${matches[0]}</span>`
+                    );
+                }
+            });
+
+            message.innerHTML = newHtml;
         }
 
         // Attach input listener (try every time)
