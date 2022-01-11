@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.1
+// @version 1.0
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -336,7 +336,7 @@ let observer = new MutationObserver((mutations) => {
 
                 var el = mutations[i].addedNodes[j];
                 var tag = el.tagName;
-                if (tag && tag.localeCompare(MESSAGE_TAG, 'en')) {
+                if (tag && tag.localeCompare(MESSAGE_TAG, 'en') > -1) {
                     processMessage(el);
                 }
             }
