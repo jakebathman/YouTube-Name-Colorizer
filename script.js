@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.0
+// @version 1.2
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -327,7 +327,7 @@ if (MutationObserver) {
 // Process new messages as they're added to the DOM
 let observer = new MutationObserver((mutations) => {
     try {
-        // look through all mutations that just occured
+        // look through all mutations that just occurred
         for (var i = 0; i < mutations.length; ++i) {
             // look through all added nodes of this mutation
 
@@ -411,6 +411,7 @@ let processMessage = function (msg) {
                 }
             });
 
+            console.log('[YTNC] Updating message innerHTML', { newHtml });
             message.innerHTML = newHtml;
         }
 
