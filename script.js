@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.2
+// @version 1.3
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -76,13 +76,15 @@ function settingsSet(key, value) {
 }
 
 function getAtMentionableUsers() {
+    // Sorted by length, descending, so
+    // @mentions for longer names are checked first
     return Array.from(
         new Set(
             AUTHORS_IN_CHAT.concat(COLORIZED_USERS_NORMAL).concat(
                 COLORIZED_USERS_TEMP
             )
         )
-    );
+    ).sort((a, b) => b.length - a.length);
 }
 
 function addUserInChat(username) {
