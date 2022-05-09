@@ -8,7 +8,7 @@
 // @grant none
 // @namespace https://github.com/jakebathman/YouTube-Name-Colorizer
 // ==/UserScript==
-console.log('############ YouTube Name Colorizer');
+console.log('[YTNC] ############ YouTube Name Colorizer');
 
 let MutationObserver =
     window.MutationObserver ||
@@ -17,26 +17,31 @@ let MutationObserver =
 
 let localStorageKey = 'yt-name-colorizer';
 let listenToInputEvents = false;
+let isFullyLoaded = false;
 
 let settingsModalElement;
 var settingsModalSave;
 var settingsModalCancel;
 var settingsModalType;
-var settingsShow;
+
+let globalModalElement;
+var globalModalSave;
+var globalModalCancel;
+var globalModalType;
 
 // Get settings for colorized names
 let SETTINGS = JSON.parse(localStorage.getItem(localStorageKey)) || {};
 let COLORIZED_USERS_NORMAL = settingsGet('users_normal', []);
 let COLORIZED_USERS_TEMP = settingsGet('users_temp', []);
-let AT_MENTIONABLE = [];
 let AUTHORS_IN_CHAT = [];
+let AT_MENTIONABLE = getAtMentionableUsers() || [];
 
 console.log({ COLORIZED_USERS_NORMAL });
 console.log({ COLORIZED_USERS_TEMP });
 console.log({ AT_MENTIONABLE });
 console.log({ AUTHORS_IN_CHAT });
 
-console.debug('SETTINGS', SETTINGS);
+console.debug('[YTNC] SETTINGS', SETTINGS);
 
 let MESSAGE_TAG = 'yt-live-chat-text-message-renderer';
 let OTHER_USER_COLOR = 'FF69B4';
@@ -48,7 +53,7 @@ let CURRENT_USER = '';
 function settingsGet(key, defaultValue = null) {
     let settings = JSON.parse(localStorage.getItem(localStorageKey)) || {};
 
-    console.debug('settings', settings);
+    console.debug('[YTNC] Settings', settings);
     if (!settings.hasOwnProperty(key)) {
         return defaultValue;
     }
@@ -70,7 +75,7 @@ function settingsSet(key, value) {
     COLORIZED_USERS_NORMAL = settingsGet('users_normal', []);
     COLORIZED_USERS_TEMP = settingsGet('users_temp', []);
     AT_MENTIONABLE = getAtMentionableUsers();
-    console.debug({ AT_MENTIONABLE });
+    // console.debug({ AT_MENTIONABLE });
 
     processExistingMessages();
 }
@@ -90,6 +95,7 @@ function getAtMentionableUsers() {
 function addUserInChat(username) {
     AUTHORS_IN_CHAT = addItemToArray(AUTHORS_IN_CHAT, username);
     AT_MENTIONABLE = getAtMentionableUsers();
+    // console.debug('[YTNC] AT_MENTIONABLE', { AT_MENTIONABLE });
 }
 
 function addItemToArray(array, item) {
@@ -127,9 +133,11 @@ function settingsRemoveUser(username, type = 'normal') {
 }
 
 let showModal = function (username) {
-    settingsModalSave = document.getElementById('ytncSave');
-    settingsModalCancel = document.getElementById('ytncCancel');
-    settingsModalType = document.getElementById('ytncModal__colorize-type');
+    settingsModalSave = frameContext().querySelector('#ytncSave');
+    settingsModalCancel = frameContext().querySelector('#ytncCancel');
+    settingsModalType = frameContext().querySelector(
+        '#ytncModal__colorize-type'
+    );
 
     if (COLORIZED_USERS_NORMAL.includes(username)) {
         settingsModalType.value = 'normal';
@@ -146,7 +154,7 @@ let showModal = function (username) {
     });
 
     settingsModalCancel.onclick = function () {
-        hideModal();
+        hideModal(settingsModal());
     };
 
     settingsModalSave.onclick = function () {
@@ -168,11 +176,26 @@ let showModal = function (username) {
                 break;
         }
 
-        hideModal();
+        hideModal(settingsModal());
     };
 
     settingsModal().querySelector('.ytnc__username').innerText = username;
     settingsModal().style.display = 'flex';
+};
+
+let showGlobalModal = function () {
+    globalModalSave = frameContext().querySelector('#ytncGlobalSave');
+    globalModalCancel = frameContext().querySelector('#ytncGlobalCancel');
+
+    globalModalCancel.onclick = function () {
+        hideModal(globalModal());
+    };
+
+    globalModalSave.onclick = function () {
+        hideModal(globalModal());
+    };
+
+    globalModal().style.display = 'flex';
 };
 
 let colorModalSelect = function (selectElement) {
@@ -196,8 +219,8 @@ let colorModalSelect = function (selectElement) {
     }
 };
 
-let hideModal = function () {
-    settingsModal().style.display = 'none';
+let hideModal = function (modal) {
+    modal.style.display = 'none';
 };
 
 let settingsModal = function () {
@@ -206,6 +229,14 @@ let settingsModal = function () {
     }
 
     return settingsModalElement;
+};
+
+let globalModal = function () {
+    if (!globalModalElement) {
+        globalModalElement = document.getElementById('ytncGlobalModal');
+    }
+
+    return globalModalElement;
 };
 
 let currentUser = function () {
@@ -251,17 +282,59 @@ function createModal() {
 
     let showDiv = document.createElement('div');
     showDiv.innerHTML = `<button id="ytncShowSettings">Show</button>`;
-    document
-        .querySelector('.ytd-video-primary-info-renderer .title')
-        .appendChild(showDiv);
+    try {
+        document
+            .querySelector('.ytd-video-primary-info-renderer .title')
+            .appendChild(showDiv);
+    } catch (error) {}
 }
-window.onload = (event) => {
-    console.log('[YTNC] Page is fully loaded');
 
+function createGlobalModal() {
+    console.log('[YTNC] Creating global settings modal div');
+    // Add the modal shell
+    const modal = document.createElement('div');
+    let modalHtml = `
+    <div id="ytncGlobalModal" style="display:none;width: 100%;height: 100%;top: 0;left: 0;position:absolute;">
+        <div class="modal-content"
+            style="background-color: #fefefe;margin: auto;padding: 0;border: 1px solid #888;box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);z-index: 999999;">
+            <div class="modal-header">
+                <h2 class="ytncGlobalModal__header" style="padding: 2px 16px;background-color: #5cb85c;color: white;">YouTube Name Colorizer</h2>
+            </div>
+            <div class="modal-body" style="padding: 12px 16px;font-size:1.7em;text-align:center;">
+                <p><span class="ytncGlobal__action">Settings</span></p>
+
+                </div>
+            <div class="modal-footer" style="padding: 8px 16px;display: flex;justify-content: space-between;height:32px;">
+                <button id="ytncGlobalCancel">Cancel</button><button id="ytncGlobalSave">Save</button>
+            </div>
+        </div>
+    </div>`;
+
+    modal.innerHTML = modalHtml;
+    document.body.appendChild(modal);
+}
+
+window.onload = (event) => {
+    console.log('[YTNC] Window is fully loaded', event);
+
+    console.log('[YTNC] Loading...');
+    load();
+};
+
+let load = function () {
+    console.log('[YTNC] adding settings button');
+    addSettingsButton();
+
+    console.log('[YTNC] creating modal');
     createModal();
 
+    console.log('[YTNC] creating global modal');
+    createGlobalModal();
+
+    console.log('[YTNC] attaching listener');
     attachInputListener();
 
+    console.log('[YTNC] processing messages');
     processExistingMessages();
 };
 
@@ -323,7 +396,7 @@ let attachInputListener = function () {
 };
 
 if (MutationObserver) {
-    console.log('Mutation observer exists');
+    console.log('[YTNC] Mutation observer already exists');
 }
 
 // Process new messages as they're added to the DOM
@@ -332,23 +405,34 @@ let observer = new MutationObserver((mutations) => {
         // look through all mutations that just occurred
         for (var i = 0; i < mutations.length; ++i) {
             // look through all added nodes of this mutation
-
             for (var j = 0; j < mutations[i].addedNodes.length; ++j) {
-                // was a child added with ID of 'bar'?
-
                 var el = mutations[i].addedNodes[j];
+
+                // For added nodes, see if they're a message element
                 var tag = el.tagName;
-                if (tag && tag.localeCompare(MESSAGE_TAG, 'en') > -1) {
+                if (tag && tag.toLowerCase() == MESSAGE_TAG) {
                     processMessage(el);
+                }
+
+                // Also see if we need to re-render the settings icon
+                if (
+                    tag &&
+                    tag.toLowerCase() ==
+                        'yt-live-chat-icon-toggle-button-renderer'
+                ) {
+                    var id = el.id;
+                    if (id && id === 'product-picker') {
+                        addSettingsButton();
+                    }
                 }
             }
         }
     } catch (error) {
-        console.error('#### YTNC error!', error);
+        console.error('[YTNC] error!', error);
     }
 });
 
-let processMessage = function (msg) {
+let processMessage = function (msg, isReprocess = false) {
     let commonStyles = 'font-weight:bold;cursor:pointer;';
 
     // New message added to the list
@@ -360,9 +444,16 @@ let processMessage = function (msg) {
         // Log the author name so it can be @mentioned
         addUserInChat(authorName);
 
-        console.debug('[YTNC] Found author', authorName);
+        // console.debug('[YTNC] Found author', authorName);
         if (currentUser() == authorName) {
             author.style.cssText += `color:#${CURRENT_USER_COLOR};${commonStyles}`;
+            // Queue an update to process this message again, since YouTube
+            // seems to re-render and undo @mention highlights on our own messages
+            if (isReprocess === false) {
+                setTimeout(() => {
+                    processMessage(msg, true);
+                }, 1500);
+            }
         } else if (COLORIZED_USERS_NORMAL.includes(authorName)) {
             author.style.cssText += `color:#${OTHER_USER_COLOR};${commonStyles}`;
         } else if (COLORIZED_USERS_TEMP.includes(authorName)) {
@@ -386,7 +477,7 @@ let processMessage = function (msg) {
 
         // Process the message text
         var message = msg.querySelector('#message');
-        console.debug({ message });
+        // console.debug('[YTNC] message', { message });
 
         if (message) {
             if ('originalHtml' in message.dataset === false) {
@@ -413,7 +504,7 @@ let processMessage = function (msg) {
                 }
             });
 
-            console.log('[YTNC] Updating message innerHTML', { newHtml });
+            // console.log('[YTNC] Updating message innerHTML', { newHtml });
             message.innerHTML = newHtml;
         }
 
@@ -423,3 +514,40 @@ let processMessage = function (msg) {
 };
 
 observer.observe(document.body, { childList: true, subtree: true });
+
+const CHAT_SETTINGS_DROPDOWN_CONTAINER_SELECTOR = 'tp-yt-iron-dropdown';
+const CHAT_SETTINGS_DROPDOWN_ITEMS_SELECTOR = 'tp-yt-paper-listbox';
+const CHAT_SETTINGS_DROPDOWN_ITEM_SELECTOR =
+    '.ytd-menu-popup-renderer,.ytls-menu-popup-renderer';
+const CHAT_SETTINGS_MENU_BUTTON_SELECTOR =
+    '#overflow.yt-live-chat-header-renderer';
+const BTTV_CHAT_DROPDOWN_BUTTON_CONTAINER_SELECTOR =
+    'div[data-a-target="bttv-chat-dropdown-button-container"]';
+
+// Add settings toggle in menu dropdown
+let addSettingsButton = function () {
+    console.log('ADDING BUTTON?!');
+
+    const itemsContainer = document.querySelector(
+        '#picker-buttons.yt-live-chat-message-input-renderer'
+    );
+    console.debug('[YTNC] itemsContainer', itemsContainer);
+    if (itemsContainer == null) {
+        console.log('[YTNC] No items container found');
+        return;
+    }
+
+    const settingsButton = document.createElement('div');
+    settingsButton.setAttribute(
+        'data-a-target',
+        'bttv-chat-dropdown-button-container'
+    );
+    settingsButton.innerHTML = `🐈`;
+    settingsButton.style.cssText = `padding: 0 3px;cursor: pointer;`;
+    settingsButton.onclick = function () {
+        showGlobalModal();
+    };
+
+    console.debug({ settingsButton });
+    itemsContainer.appendChild(settingsButton);
+};
