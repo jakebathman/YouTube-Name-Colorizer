@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.3
+// @version 1.5
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -75,7 +75,7 @@ function settingsSet(key, value) {
     COLORIZED_USERS_NORMAL = settingsGet('users_normal', []);
     COLORIZED_USERS_TEMP = settingsGet('users_temp', []);
     AT_MENTIONABLE = getAtMentionableUsers();
-    // console.debug({ AT_MENTIONABLE });
+    console.debug({ AT_MENTIONABLE });
 
     processExistingMessages();
 }
@@ -83,19 +83,21 @@ function settingsSet(key, value) {
 function getAtMentionableUsers() {
     // Sorted by length, descending, so
     // @mentions for longer names are checked first
-    return Array.from(
+    $sorted = Array.from(
         new Set(
             AUTHORS_IN_CHAT.concat(COLORIZED_USERS_NORMAL).concat(
                 COLORIZED_USERS_TEMP
             )
         )
     ).sort((a, b) => b.length - a.length);
+    // console.debug('[YTNC] Sorted??', $sorted);
+    return $sorted;
 }
 
 function addUserInChat(username) {
     AUTHORS_IN_CHAT = addItemToArray(AUTHORS_IN_CHAT, username);
     AT_MENTIONABLE = getAtMentionableUsers();
-    // console.debug('[YTNC] AT_MENTIONABLE', { AT_MENTIONABLE });
+    // console.debug('[YTNC] AT_MENTIONABLE', { AT_MENTIONABLE, AUTHORS_IN_CHAT });
 }
 
 function addItemToArray(array, item) {
@@ -461,6 +463,11 @@ let processMessage = function (msg, isReprocess = false) {
         } else {
             // Remove color override (if user was removed from all lists)
             author.style.color = '';
+        }
+        if (isReprocess === false) {
+            setTimeout(() => {
+                processMessage(msg, true);
+            }, 50);
         }
 
         // Add author onclick
