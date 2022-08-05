@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.5
+// @version 1.7
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -48,7 +48,18 @@ let OTHER_USER_COLOR = 'FF69B4';
 let CURRENT_USER_COLOR = 'ff5722';
 let TEMP_USER_COLOR = 'ffff2a';
 let MENTIONED_USER_COLOR = '612155';
+let MATCHED_WORD_COLOR = '67d4d3';
 let CURRENT_USER = '';
+let WORDS_TO_COLOR = [
+    'jake',
+    'mods',
+    '\\!multi',
+    'multi',
+    'bathman',
+    'multi-stream',
+    '\\!?setmulti',
+    // '(?:\\s|^)chat(?:\\!|\\.|\\?|\\s|$)', // for words that might be found within html, be careful
+];
 
 function settingsGet(key, defaultValue = null) {
     let settings = JSON.parse(localStorage.getItem(localStorageKey)) || {};
@@ -188,12 +199,20 @@ let showModal = function (username) {
 let showGlobalModal = function () {
     globalModalSave = frameContext().querySelector('#ytncGlobalSave');
     globalModalCancel = frameContext().querySelector('#ytncGlobalCancel');
+    globalModalProcessMessages = frameContext().querySelector(
+        '#ytncGlobalProcessMessages'
+    );
 
     globalModalCancel.onclick = function () {
         hideModal(globalModal());
     };
 
     globalModalSave.onclick = function () {
+        hideModal(globalModal());
+    };
+
+    globalModalProcessMessages.onclick = function () {
+        processExistingMessages(true);
         hideModal(globalModal());
     };
 
@@ -304,8 +323,8 @@ function createGlobalModal() {
             </div>
             <div class="modal-body" style="padding: 12px 16px;font-size:1.7em;text-align:center;">
                 <p><span class="ytncGlobal__action">Settings</span></p>
-
-                </div>
+                <button style="padding: 10px;margin-top: 14px;" id="ytncGlobalProcessMessages">Process Messages</button>
+            </div>
             <div class="modal-footer" style="padding: 8px 16px;display: flex;justify-content: space-between;height:32px;">
                 <button id="ytncGlobalCancel">Cancel</button><button id="ytncGlobalSave">Save</button>
             </div>
@@ -352,13 +371,13 @@ let frameContext = function () {
     return frameContext;
 };
 
-let processExistingMessages = function () {
+let processExistingMessages = function (once = false) {
     console.log('[YTNC] Processing existing messages');
     let messages = frameContext().querySelectorAll(
         'yt-live-chat-text-message-renderer'
     );
     messages.forEach((message) => {
-        processMessage(message);
+        processMessage(message, once);
     });
 };
 
@@ -446,8 +465,8 @@ let processMessage = function (msg, isReprocess = false) {
         // Log the author name so it can be @mentioned
         addUserInChat(authorName);
 
-        // console.debug('[YTNC] Found author', authorName);
         if (currentUser() == authorName) {
+            console.debug('[YTNC] Found author', authorName);
             author.style.cssText += `color:#${CURRENT_USER_COLOR};${commonStyles}`;
             // Queue an update to process this message again, since YouTube
             // seems to re-render and undo @mention highlights on our own messages
@@ -464,6 +483,9 @@ let processMessage = function (msg, isReprocess = false) {
             // Remove color override (if user was removed from all lists)
             author.style.color = '';
         }
+
+        // Some extensions are "helpful" and update colors and whatnot.
+        // Let them do their thing, then just do our thing again instead.
         if (isReprocess === false) {
             setTimeout(() => {
                 processMessage(msg, true);
@@ -484,7 +506,6 @@ let processMessage = function (msg, isReprocess = false) {
 
         // Process the message text
         var message = msg.querySelector('#message');
-        // console.debug('[YTNC] message', { message });
 
         if (message) {
             if ('originalHtml' in message.dataset === false) {
@@ -492,6 +513,7 @@ let processMessage = function (msg, isReprocess = false) {
             }
 
             let newHtml = message.dataset.originalHtml;
+            console.debug('[YTNC] message newHtml', { newHtml });
 
             // Loop over AT_MENTIONABLE and colorize any mentions found
             let commonAtMentionStyles = 'padding: 2px 3px;border-radius: 2px;';
@@ -507,6 +529,18 @@ let processMessage = function (msg, isReprocess = false) {
                     newHtml = newHtml.replace(
                         regex,
                         `<span style="background-color:#${MENTIONED_USER_COLOR};${commonAtMentionStyles}">${matches[0]}</span>`
+                    );
+                }
+            });
+
+            WORDS_TO_COLOR.forEach((word) => {
+                let regex = new RegExp(`\\b${word}\\b`, 'gi');
+                let matches = newHtml.match(regex);
+                if (matches) {
+                    console.debug('[YTNC] found word', { word, matches });
+                    newHtml = newHtml.replace(
+                        regex,
+                        `<span style="background-color:#${MATCHED_WORD_COLOR};color:#000;${commonAtMentionStyles}">${matches[0]}</span>`
                     );
                 }
             });
