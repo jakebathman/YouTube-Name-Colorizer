@@ -373,12 +373,33 @@ let frameContext = function () {
 
 let processExistingMessages = function (once = false) {
     console.log('[YTNC] Processing existing messages');
+    let startTime = new Date().getTime();
+
     let messages = frameContext().querySelectorAll(
         'yt-live-chat-text-message-renderer'
     );
-    messages.forEach((message) => {
+
+    let messageArray = Array.from(messages);
+
+    // Start with the most recent 100 messages
+    let countProcessed = 0;
+    messageArray.slice(-100).forEach((message) => {
+        // If the message is off the screen, stop processing
+        if (message.getBoundingClientRect().top < 0) {
+            return;
+        }
+
         processMessage(message, once);
+
+        countProcessed++;
     });
+
+    let endTime = new Date().getTime();
+    let timeDiff = endTime - startTime;
+
+    console.debug(
+        '[YTNC] Processed ' + countProcessed + ' messages in ' + timeDiff + 'ms'
+    );
 };
 
 let attachInputListener = function () {
@@ -443,7 +464,13 @@ let observer = new MutationObserver((mutations) => {
                 ) {
                     var id = el.id;
                     if (id && id === 'product-picker') {
+                        console.debug('[YTNC] Found product picker');
                         addSettingsButton();
+
+                        // In two seconds, re-process messages (needed after we swap from Top to Live)
+                        setTimeout(() => {
+                            processExistingMessages(true);
+                        }, 2000);
                     }
                 }
             }
@@ -467,7 +494,7 @@ let processMessage = function (msg, isReprocess = false) {
 
         if (currentUser() == authorName) {
             console.debug('[YTNC] Found author', authorName);
-            author.style.cssText += `color:#${CURRENT_USER_COLOR};${commonStyles}`;
+            // author.style.cssText += `color:#${CURRENT_USER_COLOR};${commonStyles}`;
             // Queue an update to process this message again, since YouTube
             // seems to re-render and undo @mention highlights on our own messages
             if (isReprocess === false) {
@@ -513,7 +540,7 @@ let processMessage = function (msg, isReprocess = false) {
             }
 
             let newHtml = message.dataset.originalHtml;
-            console.debug('[YTNC] message newHtml', { newHtml });
+            // console.debug('[YTNC] message newHtml', { newHtml });
 
             // Loop over AT_MENTIONABLE and colorize any mentions found
             let commonAtMentionStyles = 'padding: 2px 3px;border-radius: 2px;';
@@ -522,14 +549,17 @@ let processMessage = function (msg, isReprocess = false) {
                 if (user == CURRENT_USER) {
                     return;
                 }
-
-                let regex = new RegExp(`@${user}`, 'gi');
-                let matches = newHtml.match(regex);
-                if (matches) {
-                    newHtml = newHtml.replace(
-                        regex,
-                        `<span style="background-color:#${MENTIONED_USER_COLOR};${commonAtMentionStyles}">${matches[0]}</span>`
-                    );
+                try {
+                    let regex = new RegExp(`@${user}`, 'gi');
+                    let matches = newHtml.match(regex);
+                    if (matches) {
+                        newHtml = newHtml.replace(
+                            regex,
+                            `<span style="background-color:#${MENTIONED_USER_COLOR};${commonAtMentionStyles}">${matches[0]}</span>`
+                        );
+                    }
+                } catch (e) {
+                    console.error(e);
                 }
             });
 
