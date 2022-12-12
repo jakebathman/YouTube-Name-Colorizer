@@ -16,8 +16,10 @@ let MutationObserver =
     window.MozMutationObserver;
 
 let localStorageKey = 'yt-name-colorizer';
+let localStorageKeyProcessMsgs = 'yt-name-colorizer-process-msgs';
 let listenToInputEvents = false;
 let isFullyLoaded = false;
+let processMsgIntervalId;
 
 let settingsModalElement;
 var settingsModalSave;
@@ -357,6 +359,45 @@ let load = function () {
 
     console.log('[YTNC] processing messages');
     processExistingMessages();
+
+    // Set messages to re-process the latest XX messages every 5 seconds
+    let processMsgSlice = 30;
+    let processMsgInterval = 5000;
+    let lastIntervalTime =
+        localStorage.getItem(localStorageKeyProcessMsgs) || Date.now();
+    console.debug('[YTNC] Last interval time', lastIntervalTime);
+
+    // If the time since the last interval is greater than 5 seconds, set a new interval
+    console.debug(
+        `[YTNC] Setting interval to process ${processMsgSlice} messages every 5 seconds`
+    );
+    processMsgIntervalId = setInterval(() => {
+        console.debug(
+            `[YTNC] Processing ${processMsgSlice} messages`,
+            localStorage.getItem(localStorageKeyProcessMsgs),
+            Date.now() - localStorage.getItem(localStorageKeyProcessMsgs)
+        );
+        if (
+            Date.now() -
+                (localStorage.getItem(localStorageKeyProcessMsgs) ||
+                    Date.now()) <
+            processMsgInterval
+        ) {
+            // There's a duplicate interval running in a different window context
+            // (probably the chat iFrame). Clear this interval and reset the timestamp
+            // so we keep the other interval running fine.
+            console.debug('[YTNC] Resetting interval', processMsgIntervalId);
+            clearInterval(processMsgIntervalId);
+            localStorage.setItem(
+                localStorageKeyProcessMsgs,
+                Date.now() - processMsgInterval
+            );
+        } else {
+            localStorage.setItem(localStorageKeyProcessMsgs, Date.now());
+            processExistingMessages(true, processMsgSlice);
+        }
+    }, processMsgInterval);
+    console.debug('[YTNC] Interval ID: ' + processMsgIntervalId);
 };
 
 let frameContext = function () {
@@ -371,7 +412,7 @@ let frameContext = function () {
     return frameContext;
 };
 
-let processExistingMessages = function (once = false) {
+let processExistingMessages = function (once = false, slice = 100) {
     console.log('[YTNC] Processing existing messages');
     let startTime = new Date().getTime();
 
@@ -381,9 +422,9 @@ let processExistingMessages = function (once = false) {
 
     let messageArray = Array.from(messages);
 
-    // Start with the most recent 100 messages
+    // Start with the most recent 100 messages (or slice amount passed in)
     let countProcessed = 0;
-    messageArray.slice(-100).forEach((message) => {
+    messageArray.slice(-1 * slice).forEach((message) => {
         // If the message is off the screen, stop processing
         if (message.getBoundingClientRect().top < 0) {
             return;
@@ -467,10 +508,10 @@ let observer = new MutationObserver((mutations) => {
                         console.debug('[YTNC] Found product picker');
                         addSettingsButton();
 
-                        // In two seconds, re-process messages (needed after we swap from Top to Live)
+                        // In 2.5 seconds, re-process messages (needed after we swap from Top to Live)
                         setTimeout(() => {
                             processExistingMessages(true);
-                        }, 2000);
+                        }, 2500);
                     }
                 }
             }
