@@ -360,6 +360,11 @@ let load = function () {
     console.log('[YTNC] processing messages');
     processExistingMessages();
 
+    console.log('[YTNC] process messages regularly');
+    processMessagesRegularly();
+};
+
+let processMessagesRegularly = function () {
     // Set messages to re-process the latest XX messages every 5 seconds
     let processMsgSlice = 30;
     let processMsgInterval = 5000;
@@ -511,6 +516,7 @@ let observer = new MutationObserver((mutations) => {
                         // In 2.5 seconds, re-process messages (needed after we swap from Top to Live)
                         setTimeout(() => {
                             processExistingMessages(true);
+                            processMessagesRegularly();
                         }, 2500);
                     }
                 }
