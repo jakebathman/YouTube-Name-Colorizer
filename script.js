@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.7
+// @version 1.8
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -597,7 +597,8 @@ let processMessage = function (msg, isReprocess = false) {
                     return;
                 }
                 try {
-                    let regex = new RegExp(`@${user}`, 'gi');
+                    let escapedUser = escapeStringForRegex(user);
+                    let regex = new RegExp(`@${escapedUser}`, 'gi');
                     let matches = newHtml.match(regex);
                     if (matches) {
                         newHtml = newHtml.replace(
@@ -606,15 +607,21 @@ let processMessage = function (msg, isReprocess = false) {
                         );
                     }
                 } catch (e) {
+                    console.log('[YTNC] escaped user', user, escapedUser);
                     console.error(e);
                 }
             });
 
             WORDS_TO_COLOR.forEach((word) => {
-                let regex = new RegExp(`\\b${word}\\b`, 'gi');
+                let escapedWord = escapeStringForRegex(word);
+                let regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
                 let matches = newHtml.match(regex);
                 if (matches) {
-                    console.debug('[YTNC] found word', { word, matches });
+                    console.debug('[YTNC] found word', {
+                        escapedWord,
+                        word,
+                        matches,
+                    });
                     newHtml = newHtml.replace(
                         regex,
                         `<span style="background-color:#${MATCHED_WORD_COLOR};color:#000;${commonAtMentionStyles}">${matches[0]}</span>`
@@ -668,4 +675,8 @@ let addSettingsButton = function () {
 
     console.debug({ settingsButton });
     itemsContainer.appendChild(settingsButton);
+};
+
+let escapeStringForRegex = function (name) {
+    return name.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
 };
