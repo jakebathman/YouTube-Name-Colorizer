@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.8
+// @version 1.9
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -35,6 +35,7 @@ var globalModalType;
 let SETTINGS = JSON.parse(localStorage.getItem(localStorageKey)) || {};
 let COLORIZED_USERS_NORMAL = settingsGet('users_normal', []);
 let COLORIZED_USERS_TEMP = settingsGet('users_temp', []);
+let USERS_NOTES = settingsGet('users_notes', {});
 let AUTHORS_IN_CHAT = [];
 let AT_MENTIONABLE = getAtMentionableUsers() || [];
 
@@ -87,6 +88,7 @@ function settingsSet(key, value) {
 
     COLORIZED_USERS_NORMAL = settingsGet('users_normal', []);
     COLORIZED_USERS_TEMP = settingsGet('users_temp', []);
+    USERS_NOTES = settingsGet('users_notes', {});
     AT_MENTIONABLE = getAtMentionableUsers();
     console.debug({ AT_MENTIONABLE });
 
@@ -153,6 +155,7 @@ let showModal = function (username) {
     settingsModalType = frameContext().querySelector(
         '#ytncModal__colorize-type'
     );
+    settingsModalNote = frameContext().querySelector('#ytncModal__note');
 
     if (COLORIZED_USERS_NORMAL.includes(username)) {
         settingsModalType.value = 'normal';
@@ -161,6 +164,8 @@ let showModal = function (username) {
     } else {
         settingsModalType.value = 'none';
     }
+
+    settingsModalNote.value = getNoteForUser(username);
 
     colorModalSelect(settingsModalType);
 
@@ -190,6 +195,9 @@ let showModal = function (username) {
                 settingsRemoveUser(username, 'temp');
                 break;
         }
+
+        // Save note for user
+        setNoteForUser(username, settingsModalNote.value);
 
         hideModal(settingsModal());
     };
@@ -272,6 +280,26 @@ let currentUser = function () {
     return CURRENT_USER;
 };
 
+let getNoteForUser = function (username) {
+    console.debug('[YTNC] getNoteForUser', { username });
+    let note = null;
+
+    if (Object.keys(USERS_NOTES).includes(username)) {
+        note = USERS_NOTES[username];
+    }
+
+    return note;
+};
+
+let setNoteForUser = function (username, note) {
+    console.debug('[YTNC] setNoteForUser', { username, note });
+    USERS_NOTES[username] = note;
+
+    console.debug('[YTNC] USERS_NOTES', { USERS_NOTES });
+
+    settingsSet('users_notes', USERS_NOTES);
+};
+
 function createModal() {
     console.log('[YTNC] Creating modal div');
     // Add the modal shell
@@ -292,6 +320,12 @@ function createModal() {
                         <option value="normal">Normal</option>
                         <option value="temp">Temp</option>
                     </select>
+                </div>
+                <br />
+                <div>
+                    <!-- Input for notes about this user -->
+                    <label for="ytncModal__note">Note</label>
+                    <textarea id="ytncModal__note" style="width: 100%;height: 100px;"></textarea>
                 </div>
             </div>
             <div class="modal-footer" style="padding: 8px 16px;display: flex;justify-content: space-between;height:32px;">
