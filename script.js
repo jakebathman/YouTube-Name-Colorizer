@@ -180,19 +180,16 @@ let showModal = function (username) {
     settingsModalSave.onclick = function () {
         switch (settingsModalType.value) {
             case 'normal':
-                settingsAddUser(username, 'normal');
-                settingsRemoveUser(username, 'temp');
+                addNormalUser(username);
                 break;
 
             case 'temp':
-                settingsAddUser(username, 'temp');
-                settingsRemoveUser(username, 'normal');
+                addTempUser(username);
                 break;
 
             default:
                 // Remove from both lists
-                settingsRemoveUser(username, 'normal');
-                settingsRemoveUser(username, 'temp');
+                removeUser(username);
                 break;
         }
 
@@ -561,6 +558,21 @@ let observer = new MutationObserver((mutations) => {
     }
 });
 
+let addNormalUser = (username) => {
+    settingsAddUser(username, 'normal');
+    settingsRemoveUser(username, 'temp');
+};
+
+let addTempUser = (username) => {
+    settingsAddUser(username, 'temp');
+    settingsRemoveUser(username, 'normal');
+};
+
+let removeUser = (username) => {
+    settingsRemoveUser(username, 'normal');
+    settingsRemoveUser(username, 'temp');
+};
+
 let processMessage = function (msg, isReprocess = false) {
     let commonStyles = 'font-weight:bold;cursor:pointer;';
 
@@ -601,8 +613,18 @@ let processMessage = function (msg, isReprocess = false) {
         }
 
         // Add author onclick
-        author.onclick = function () {
-            showModal(authorName);
+        author.onclick = function (e) {
+            if (e.altKey) {
+                // Add to temp list directly without opening the modal
+                // or remove them if they're already temp
+                if (COLORIZED_USERS_TEMP.includes(authorName)) {
+                    removeUser(authorName);
+                } else {
+                    addTempUser(authorName);
+                }
+            } else {
+                showModal(authorName);
+            }
         };
 
         // Move user badges before author chip element
