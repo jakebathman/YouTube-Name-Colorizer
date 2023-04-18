@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.9
+// @version 1.10
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -725,8 +725,13 @@ let addSettingsButton = function () {
     );
     settingsButton.innerHTML = `🐈`;
     settingsButton.style.cssText = `padding: 0 3px;cursor: pointer;`;
-    settingsButton.onclick = function () {
-        showGlobalModal();
+    settingsButton.onclick = function (e) {
+        if (e.altKey) {
+            // Process existing messsages once
+            processExistingMessages(true);
+        } else {
+            showGlobalModal();
+        }
     };
 
     console.debug({ settingsButton });
