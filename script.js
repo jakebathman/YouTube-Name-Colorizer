@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.10
+// @version 1.11
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -393,6 +393,9 @@ let load = function () {
 
     console.log('[YTNC] process messages regularly');
     processMessagesRegularly();
+
+    console.log('[YTNC] fixing some styles');
+    fixStyles();
 };
 
 let processMessagesRegularly = function () {
@@ -740,4 +743,14 @@ let addSettingsButton = function () {
 
 let escapeStringForRegex = function (name) {
     return name.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+};
+
+let fixStyles = function () {
+    // Find the element with ID reaction-control-panel-overlay and set it to display: none
+    let reactionControlPanelOverlay = document.querySelector(
+        '#reaction-control-panel-overlay'
+    );
+    if (reactionControlPanelOverlay) {
+        reactionControlPanelOverlay.style.display = 'none';
+    }
 };
