@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.11
+// @version 1.12
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -396,6 +396,9 @@ let load = function () {
 
     console.log('[YTNC] fixing some styles');
     fixStyles();
+
+    console.log('[YTNC] registering key listeners');
+    registerKeyListeners();
 };
 
 let processMessagesRegularly = function () {
@@ -753,4 +756,14 @@ let fixStyles = function () {
     if (reactionControlPanelOverlay) {
         reactionControlPanelOverlay.style.display = 'none';
     }
+};
+
+let registerKeyListeners = function () {
+    // Listen for opt+r to reprocess messages
+    document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey && e.key === 'r') {
+            console.log('[YTNC] Reprocessing messages (ctrl+r)');
+            processExistingMessages(true);
+        }
+    });
 };
