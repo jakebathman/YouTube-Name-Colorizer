@@ -399,6 +399,9 @@ let load = function () {
 
     console.log('[YTNC] registering key listeners');
     registerKeyListeners();
+
+    console.log('[YTNC] loading truffle data');
+    loadTruffleData();
 };
 
 let processMessagesRegularly = function () {
@@ -587,12 +590,12 @@ let processMessage = function (msg, isReprocess = false) {
 
     if (author) {
         let authorName = author.innerText;
+        console.debug('[YTNC] Found author', authorName);
 
         // Log the author name so it can be @mentioned
         addUserInChat(authorName);
 
         if (currentUser() == authorName) {
-            console.debug('[YTNC] Found author', authorName);
             // author.style.cssText += `color:#${CURRENT_USER_COLOR};${commonStyles}`;
             // Queue an update to process this message again, since YouTube
             // seems to re-render and undo @mention highlights on our own messages
@@ -766,4 +769,27 @@ let registerKeyListeners = function () {
             processExistingMessages(true);
         }
     });
+};
+
+let loadTruffleData = function () {
+    // @todo, this is a hard problem. Disabling for now.
+    return;
+
+    // This is a JSON payload stored at window.ytInitialData
+    // Its only use now is to know when someone's Truffle display name
+    // is different than their YouTube display name
+
+    // Get the JSON payload
+    let truffleInitData = window.ytInitialData;
+    console.log('[YTNC] truffleInitData', truffleInitData);
+
+    // fetch other users info from Truffle (UCNF0LEQ2abMr0PAX3cfkAMg is DrLupo)
+    let users = fetch(
+        'https://v2.truffle.vip/gateway/users/v2/c/UCNF0LEQ2abMr0PAX3cfkAMg'
+    )
+        .then((response) => response.json())
+        .then((data) => {
+            console.log('[YTNC] users from truffle', data);
+            return data;
+        });
 };
