@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.12
+// @version 1.13
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -636,9 +636,27 @@ let processMessage = function (msg, isReprocess = false) {
             }
         };
 
+        // If there's a note for this user, add an icon
+        let note = getNoteForUser(authorName);
+        let hasNoteIcon = msg.querySelector('span[title="Note"]');
+        console.debug('[YTNC] Note for user', {
+            authorName,
+            note,
+            hasNoteIcon,
+        });
+        if (note && !hasNoteIcon) {
+            let noteIcon = document.createElement('span');
+            noteIcon.innerHTML =
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M10 3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v9a2 2 0 0 0 2 2h8a2 2 0 0 1-2-2V3ZM4 4h4v2H4V4Zm4 3.5H4V9h4V7.5Zm-4 3h4V12H4v-1.5Z" clip-rule="evenodd" /><path d="M13 5h-1.5v6.25a1.25 1.25 0 1 0 2.5 0V6a1 1 0 0 0-1-1Z" /></svg>';
+            noteIcon.title = 'Note';
+            noteIcon.style.cssText = `cursor: help;width:16px;height:auto;display:flex;color:white;opacity:0.5;align-self:end;`;
+            author.after(noteIcon);
+        }
+
         // Move user badges before author chip element
         var badges = msg.querySelector('#chat-badges.yt-live-chat-author-chip');
 
+        console.debug('[YTNC] Moving badges', badges);
         if (badges) {
             badges.after(author);
         }
