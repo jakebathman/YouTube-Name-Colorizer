@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name YouTube Name Colorizer
-// @version 1.13
+// @version 1.14
 // @author JakeBathman
 // @description Color certain names in YouTube stream chat
 // @match https://*.youtube.com/*
@@ -669,6 +669,11 @@ let processMessage = function (msg, isReprocess = false) {
                 message.dataset.originalHtml = message.innerHTML;
             }
 
+            // check if the message has an href attribute
+            if (message.querySelector('a[href]')) {
+                return;
+            }
+
             let newHtml = message.dataset.originalHtml;
             // console.debug('[YTNC] message newHtml', { newHtml });
 
@@ -705,6 +710,7 @@ let processMessage = function (msg, isReprocess = false) {
                         word,
                         matches,
                     });
+
                     newHtml = newHtml.replace(
                         regex,
                         `<span style="background-color:#${MATCHED_WORD_COLOR};color:#000;${commonAtMentionStyles}">${matches[0]}</span>`
